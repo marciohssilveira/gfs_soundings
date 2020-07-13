@@ -159,7 +159,7 @@ def plot_skewt(df, step):
 for step in gfs_output_steps.keys():
     print(step)
     plot_skewt(adjust_data(gfs_output_steps[step]), step)
-    plt.savefig(f'{str(step).replace(":", " ").replace(" ", "_")} sounding_gfs.png', format='png')
+    plt.savefig(f'./img/{str(step).replace(":", " ").replace(" ", "_")} sounding_gfs.png', format='png')
     plt.show()
 
 end_time = dt.datetime.now() - start_time
