@@ -30,23 +30,24 @@ dataset = 'Latest Collection for GFS Quarter Degree Forecast'
 gfs_subset = gfs_catalog.datasets[dataset].subset()
 
 ###########################################
-# Define sub_point
+# Define sub_point to proceed with the query
 query = gfs_subset.query()
 
 ###########################################
-# We construct a query asking for data corresponding to desired latitude and longitude and
-# for the current time. We also ask for NetCDF version 4 data and choose the variables.
-# This request will return all vertical levels for a single point and single time.
+# Then we construct a query asking for data corresponding to desired latitude and longitude and
+# for the time interval. We also ask for NetCDF version 4 data and choose the variables.
+# This request will return all vertical levels for a single point and for the time interval.
 # Note the string representation of the query is a properly encoded query string.
 query.lonlat_point(-46, -23)
 now = dt.datetime.utcnow()
 query.time_range(now, now + dt.timedelta(hours=33))
 query.accept('netcdf4')
+
 ###########################################
 # We'll pull out the variables we want to use, as well as the pressure values.
-# To get the name of the correct variable for pressure (which matches the levels
-# for temperature and relative humidity, we look at the `coordinates` attribute.
+# To get the name of the correct variable we look at the 'variables' attribute on.
 # The last of the variables listed in `coordinates` is the pressure dimension.
+# print(gfs_subset.variables)
 variable_list = ['Temperature_isobaric',
                  'Relative_humidity_isobaric',
                  'u-component_of_wind_isobaric',
@@ -58,9 +59,17 @@ query.variables(*variable_list)
 gfs = gfs_subset.get_data(query)
 
 
+# The variables are then stored in a NetCDF4 dataset
 # print(gfs.variables.keys())
 
 def get_variables(data, var_list, time):
+    """
+    Uses the NetCDF4 dataset from the query,
+    the list of variables (with the correct names) and
+    time extracted from the variables (gfs.variables['time'][0, :])
+    to return a dataset containing the chosen data and pressure levels
+
+    """
     df_list = []
     for variable in var_list:
         chosen_variable = data.variables[variable]
@@ -76,18 +85,18 @@ def get_variables(data, var_list, time):
     return df.iloc[::-1]
 
 
-# Getting time stamps
+# Getting time stamps to use in the get_variables() function
 times = gfs.variables['time'][0, :]
 gfs_output_steps = {}
 for time in range(len(times)):
     time_values = gfs.variables['time']
     time_value = num2date(time_values[0, time], time_values.units)
     variables = get_variables(gfs, variable_list, time)
-    gfs_output_steps[time_value] = variables
+    gfs_output_steps[time_value] = variables # put all df into a dictionary using the timestamp as key
 
 
 ###############
-# adjust the data
+# Adjust the data - change units
 def adjust_data(df):
     df['Temperature_isobaric'] = df['Temperature_isobaric'].apply(lambda x: x - 273.15)
     df['pressure'] = df['pressure'].apply(lambda x: x / 100)
@@ -105,6 +114,10 @@ def adjust_data(df):
 
 
 def plot_skewt(df, step):
+    """
+    takes the treated dataframe and plots the skewt-logp diagram
+    """
+
     # We will pull the data out of the example dataset into individual variables
     # and assign units.
     p = df['pressure'].values * units.hPa
@@ -155,7 +168,8 @@ def plot_skewt(df, step):
 
     return skew
 
-
+# Iterate over the dictionary with all timestamps
+# apply the ajust_data() function and generate the skew-t
 for step in gfs_output_steps.keys():
     print(step)
     plot_skewt(adjust_data(gfs_output_steps[step]), step)
