@@ -1,77 +1,79 @@
 # Copyright (c) 2013-2015 Siphon Contributors.
 # Distributed under the terms of the BSD 3-Clause License.
 # SPDX-License-Identifier: BSD-3-Clause
-"""
-Use Siphon to query the NetCDF Subset Service (NCSS).
-"""
 
 import datetime as dt
 
 start_time = dt.datetime.now()
 import re
+import pandas as pd
+import numpy as np
 from functools import reduce
 from metpy.plots import SkewT
 import metpy.calc as mpcalc
 from metpy.units import units, pandas_dataframe_to_unit_arrays
 import matplotlib.pyplot as plt
 from siphon.catalog import TDSCatalog
-import pandas as pd
-import numpy as np
 from netCDF4 import num2date
 
-###########################################
-# First we construct a TDSCatalog instance using the url
-url = 'http://thredds.ucar.edu/thredds/catalog/grib/NCEP/GFS/Global_0p25deg/catalog.xml'
-gfs_catalog = TDSCatalog(url)
 
-# We see this catalog contains three datasets.
-# print(gfs_catalog.datasets)
-dataset = 'Latest Collection for GFS Quarter Degree Forecast'
-gfs_subset = gfs_catalog.datasets[dataset].subset()
+def get_data(station_coordinates, list_of_variables, hours):
+    """
+    :param station_coordinates: tuple like (lon, lat)
+    :param list_of_variables: chosen list of variables based on the variables list for the dataset
+    :param hours: number of hours for the prediction
+    :return: a subset of the netCDF4 dataset based on the given coordinates and variables
+    """
+    ###########################################
+    # First we construct a TDSCatalog instance using the url
+    URL = 'http://thredds.ucar.edu/thredds/catalog/grib/NCEP/GFS/Global_0p25deg/catalog.xml'
+    gfs_catalog = TDSCatalog(URL)
 
-###########################################
-# Define sub_point to proceed with the query
-query = gfs_subset.query()
+    # We see this catalog contains three datasets.
+    # print(gfs_catalog.datasets)
+    dataset = 'Latest Collection for GFS Quarter Degree Forecast'
+    gfs_subset = gfs_catalog.datasets[dataset].subset()
 
-###########################################
-# Then we construct a query asking for data corresponding to desired latitude and longitude and
-# for the time interval. We also ask for NetCDF version 4 data and choose the variables.
-# This request will return all vertical levels for a single point and for the time interval.
-# Note the string representation of the query is a properly encoded query string.
-query.lonlat_point(-46, -23)
-now = dt.datetime.utcnow()
-query.time_range(now, now + dt.timedelta(hours=33))
-query.accept('netcdf4')
+    ###########################################
+    # Define sub_point to proceed with the query
+    query = gfs_subset.query()
 
-###########################################
-# We'll pull out the variables we want to use, as well as the pressure values.
-# To get the name of the correct variable we look at the 'variables' attribute on.
-# The last of the variables listed in `coordinates` is the pressure dimension.
-# print(gfs_subset.variables)
-variable_list = ['Temperature_isobaric',
-                 'Relative_humidity_isobaric',
-                 'u-component_of_wind_isobaric',
-                 'v-component_of_wind_isobaric']
-query.variables(*variable_list)
+    ###########################################
+    # Then we construct a query asking for data corresponding to desired latitude and longitude and
+    # for the time interval. We also ask for NetCDF version 4 data and choose the variables.
+    # This request will return all vertical levels for a single point and for the time interval.
+    # Note the string representation of the query is a properly encoded query string.
+    query.lonlat_point(*station_coordinates)
+    now = dt.datetime.utcnow()
+    query.time_range(now, now + dt.timedelta(hours=hours))
+    query.accept('netcdf4')
 
-###########################################
-# We now request data from the server using this query.
-gfs = gfs_subset.get_data(query)
+    ###########################################
+    # We'll pull out the variables we want to use, as well as the pressure values.
+    # To get the name of the correct variable we look at the 'variables' attribute on.
+    # The last of the variables listed in `coordinates` is the pressure dimension.
+    # print(gfs_subset.variables)
+
+    query.variables(*list_of_variables)
+
+    ###########################################
+    # We now request data from the server using this query.
+    gfs = gfs_subset.get_data(query)
+    return gfs
 
 
 # The variables are then stored in a NetCDF4 dataset
 # print(gfs.variables.keys())
 
-def get_variables(data, var_list, time):
+def get_variables(data, list_of_variables, time):
     """
-    Uses the NetCDF4 dataset from the query,
-    the list of variables (with the correct names) and
-    time extracted from the variables (gfs.variables['time'][0, :])
-    to return a dataset containing the chosen data and pressure levels
-
+    :param data: the subset of netCDF4 obtained with get_data() function
+    :param list_of_variables: chosen list of variables based on the variables list for the dataset
+    :param time:
+    :return:
     """
     df_list = []
-    for variable in var_list:
+    for variable in list_of_variables:
         chosen_variable = data.variables[variable]
         chosen_variable_vals = chosen_variable[0, time].squeeze()
         press_lvls_name = chosen_variable.coordinates.split()[-1]
@@ -83,16 +85,6 @@ def get_variables(data, var_list, time):
 
     df = reduce(lambda left, right: pd.merge(left, right, on=['pressure'], how='inner'), df_list)
     return df.iloc[::-1]
-
-
-# Getting time stamps to use in the get_variables() function
-times = gfs.variables['time'][0, :]
-gfs_output_steps = {}
-for time in range(len(times)):
-    time_values = gfs.variables['time']
-    time_value = num2date(time_values[0, time], time_values.units)
-    variables = get_variables(gfs, variable_list, time)
-    gfs_output_steps[time_value] = variables # put all df into a dictionary using the timestamp as key
 
 
 ###############
@@ -113,7 +105,7 @@ def adjust_data(df):
     return pd.DataFrame(df)
 
 
-def plot_skewt(df, step):
+def plot_skewt(df, valid):
     """
     takes the treated dataframe and plots the skewt-logp diagram
     """
@@ -135,7 +127,7 @@ def plot_skewt(df, step):
     skew.plot(p, T, 'r')
     skew.plot(p, Td, 'g')
     skew.plot_barbs(p, u, v)
-    skew.ax.set_ylim(1013, 100)
+    skew.ax.set_ylim(1020, 100)
     skew.ax.set_xlim(-40, 60)
 
     # Calculate LCL height and plot as black dot
@@ -155,26 +147,63 @@ def plot_skewt(df, step):
     skew.plot_moist_adiabats()
     skew.plot_mixing_lines()
 
+    skew.shade_cape(p, T, prof)
+    skew.shade_cin(p, T, prof)
+
     # Add some descriptive titles
     lat = gfs.geospatial_lat_min
     lon = gfs.geospatial_lon_min
-    plt.title(f'GFS Sounding ({lat:.2f}, {lon:.2f})', loc='left')
+    plt.title(f'GFS Sounding ({station.upper()})', loc='left')
 
-    run_time = re.search(r'(?<=deg_)(.*)(?=.grib2)', gfs.title).group(1)
+    run_time = re.search(r"(?<=deg_)(.*)(?=.grib2)", gfs.title).group(1)
     plt.title(f'Based on {run_time} GFS run', loc='right')
 
-    valid = step
     plt.title(f'Valid: {valid}', loc='center')
 
     return skew
 
-# Iterate over the dictionary with all timestamps
-# apply the ajust_data() function and generate the skew-t
-for step in gfs_output_steps.keys():
-    print(step)
-    plot_skewt(adjust_data(gfs_output_steps[step]), step)
-    plt.savefig(f'./img/{str(step).replace(":", " ").replace(" ", "_")} sounding_gfs.png', format='png')
-    plt.show()
+
+# Getting time stamps to use in the get_variables() function
+stations = {'sbgr': (-46.473056, -23.435556),
+            'sbmt': (-46.633889, -23.506667),
+            'sbsp': (-46.656389, -23.626111),
+            'sbjd': (-46.943611, -23.181667),
+            'sbbp': (-46.537500, -22.979167),
+            'sbkp': (-47.134444, -23.006944),
+            'sdco': (-47.486389, -23.483056),
+            'sbjh': (-47.165833, -23.426944),
+            'sbaq': (-48.140278, -21.804444),
+            'sbrp': (-47.776667, -21.136389),
+            'sbsr': (-49.404722, -20.816111),
+            'sbur': (-47.966111, -19.764722),
+            'sbul': (-48.225278, -18.883611),
+            'sbax': (-46.965556, -19.560556),
+            'sbvg': (-45.473333, -21.588889)}
+
+hours = 24
+variable_list = ['Temperature_isobaric',
+                 'Relative_humidity_isobaric',
+                 'u-component_of_wind_isobaric',
+                 'v-component_of_wind_isobaric']
+
+for station, coordinates in stations.items():
+    gfs = get_data(coordinates, variable_list, hours)
+
+    time_steps = gfs.variables['time'][0, :]
+    gfs_output_steps = {}
+    for step in range(len(time_steps)):
+        step_values = gfs.variables['time']
+        step_value = num2date(step_values[0, step], step_values.units)
+        variables = get_variables(gfs, variable_list, step)
+        gfs_output_steps[step_value] = variables  # put all df into a dictionary using the timestamp as key
+
+
+    # Iterate over the dictionary with all timestamps
+    # apply the ajust_data() function and generate the skew-t
+    for step in gfs_output_steps.keys():
+        plot_skewt(adjust_data(gfs_output_steps[step]), step)
+        valid = str(step).split()[0].replace('-', ' ').split()[-1] + "_" + str(step).split()[1].replace(':', ' ').split()[0]
+        plt.savefig(f'./img/{station}/{station}_sounding_gfs_{valid}.png', format='png')
 
 end_time = dt.datetime.now() - start_time
 print(f'Finished in {end_time.seconds} seconds')
