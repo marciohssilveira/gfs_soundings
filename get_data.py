@@ -67,8 +67,7 @@ class GetGFSData:
         :return: the updated dataframe
         """
         # converts temperature from Kelvin to Degrees Celsius
-        data_with_variables['Temperature_isobaric'] = data_with_variables['Temperature_isobaric'].apply(
-            lambda x: x - 273.15)
+        data_with_variables['Temperature_isobaric'] = data_with_variables['Temperature_isobaric'].apply(lambda x: x - 273.015)
 
         # converts pressure from Pa to hPa
         data_with_variables['pressure'] = data_with_variables['pressure'].apply(lambda x: x / 100)
