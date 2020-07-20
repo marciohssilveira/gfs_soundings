@@ -14,7 +14,7 @@ class GetGFSData:
         self.variables = variables
         self.units = units
 
-    def get_gfs_data(self, coordinate, n_hours):
+    def get_gfs_data(self, station, coordinate, n_hours):
         """
         :param coordinates: tuple like (lon, lat)
         :param variables: chosen list of variables based on the variables list for the dataset
@@ -54,7 +54,8 @@ class GetGFSData:
 
         ###########################################
         # We now request data from the server using this query.
-        raw_data = gfs_subset.get_data(query) # loop for each coordinate
+        print(f'Downloading data for {station}...')
+        raw_data = gfs_subset.get_data(query)  # loop for each coordinate
         return raw_data
 
     # The variables are then stored in a NetCDF4 dataset
@@ -110,4 +111,3 @@ class GetGFSData:
         data_with_variables = reduce(lambda left, right: pd.merge(left, right, on=['pressure'], how='inner'), df_list)
         adjusted_data = self.adjust_data(data_with_variables.iloc[::-1])
         return adjusted_data
-
