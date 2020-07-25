@@ -10,6 +10,12 @@ class PlotSkew:
     def __init__(self, station_data):
         self.station_data = station_data
 
+    def calculate_index(self):
+        """
+        :return:
+        """
+
+
     def plot_skewt(self):
         """
         :param adjusted_data: receives the post processed dataframe
@@ -59,3 +65,24 @@ class PlotSkew:
         skew.shade_cin(p, T, prof)
 
         return skew
+
+# from metpy.units import units
+# from gfs_soundings import station_data
+#
+# p = station_data['pressure'].values * units.hPa
+# T = station_data['Temperature_isobaric'].values * units.degC
+# Td = station_data['Dewpoint'].replace(np.nan, 0.0000001).values * units.degC
+# prof = mpcalc.parcel_profile(p, T[0], Td[0])
+# cape = mpcalc.cape_cin(pressure=p,
+#                        temperature=T,
+#                        dewpt=Td,
+#                        parcel_profile=prof)
+# lcl_pressure, lcl_temperature = mpcalc.lcl(pressure=p[0],
+#                                            temperature=T[0],
+#                                            dewpt=Td[0])
+# el_pressure, el_temperature = mpcalc.el(pressure=p[0],
+#                                         temperature=T[0],
+#                                         dewpt=Td[0])
+# lfc_pressure, lfc_temperature = mpcalc.lfc(pressure=p[0],
+#                                            temperature=T[0],
+#                                            dewpt=Td[0])

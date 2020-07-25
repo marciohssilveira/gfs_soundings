@@ -1,11 +1,12 @@
 import datetime as dt
 
 start = dt.datetime.now()
-from get_data import GetGFSData
+from get_gfs_data import GetGFSData
 from plot_skew import PlotSkew
 from netCDF4 import num2date
 import matplotlib.pyplot as plt
 import re
+import os
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -26,7 +27,7 @@ coordinates = {'SBGR': (-46.473056, -23.435556),
                'SBAX': (-46.965556, -19.560556),
                'SBVG': (-45.473333, -21.588889)}
 
-n_hours = 10
+n_hours = 1
 URL = 'http://thredds.ucar.edu/thredds/catalog/grib/NCEP/GFS/Global_0p25deg/catalog.xml'
 dataset = 'Latest Collection for GFS Quarter Degree Forecast'
 variables = ['Temperature_isobaric',
@@ -37,6 +38,12 @@ variables = ['Temperature_isobaric',
 units = ['hPa', 'degC', 'percent', 'm/s', 'm/s']
 
 skewt = GetGFSData(URL, dataset, variables, units)
+
+folders_to_be_made = list(coordinates.keys())
+root_path = './img'
+for folder in folders_to_be_made:
+    if folder not in os.listdir(root_path):
+        os.mkdir(os.path.join(root_path, folder))
 
 for station, coordinate in coordinates.items():
     raw_data = skewt.get_gfs_data(station, coordinate, n_hours)
@@ -51,8 +58,8 @@ for station, coordinate in coordinates.items():
         run_time = re.findall(r'(?<=deg_)(.*)(?=.grib2)', raw_data.title)[0]
         plt.title(f'Based on {run_time} GFS run', loc='right')
         plt.title(f'Valid: {step_value}', loc='center')
-        step = f'{step_value.year}{step_value.month:02}{step_value.day:02}_{step_value.hour:02}'
-        plt.savefig(f'./img/{station}/{station.upper()}_GFS_sounding_{step}UTC.png', format='png')
+        step = f'{step_value.day:02}_{step_value.hour:02}'
+        plt.savefig(f'./img/{station.upper()}/{station.upper()}_GFS_sounding_{step}UTC.png', format='png')
 
 end = dt.datetime.now()
 print('Done!')
