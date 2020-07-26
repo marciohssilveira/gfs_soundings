@@ -27,7 +27,7 @@ coordinates = {'SBGR': (-46.473056, -23.435556),
                'SBAX': (-46.965556, -19.560556),
                'SBVG': (-45.473333, -21.588889)}
 
-n_hours = 1
+n_hours = 3
 URL = 'http://thredds.ucar.edu/thredds/catalog/grib/NCEP/GFS/Global_0p25deg/catalog.xml'
 dataset = 'Latest Collection for GFS Quarter Degree Forecast'
 variables = ['Temperature_isobaric',
