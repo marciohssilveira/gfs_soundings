@@ -1,0 +1,5 @@
+venv
+.vscode/settings.json
+__pycache__/get_gfs_data.cpython-38.pyc
+__pycache__/plot_skew.cpython-38.pyc
+__pycache__/skewt_logp.cpython-38.pyc

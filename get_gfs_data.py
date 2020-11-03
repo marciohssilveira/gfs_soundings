@@ -8,13 +8,16 @@ from siphon.catalog import TDSCatalog
 
 class GetGFSData:
 
-    def __init__(self, URL, dataset, variables, units):
-        self.URL = URL
-        self.dataset = dataset
-        self.variables = variables
-        self.units = units
+    def __init__(self):
+        self.dataset = 'Latest Collection for GFS Quarter Degree Forecast'
+        self.URL = 'http://thredds.ucar.edu/thredds/catalog/grib/NCEP/GFS/Global_0p25deg/catalog.xml'
+        self.variables = ['Temperature_isobaric',
+                          'Relative_humidity_isobaric',
+                          'u-component_of_wind_isobaric',
+                          'v-component_of_wind_isobaric']
+        self.units = ['hPa', 'degC', 'percent', 'm/s', 'm/s']
 
-    def get_gfs_data(self, station, coordinate, n_hours):
+    def get(self, station, coordinate, n_hours):
         """
         :param coordinates: tuple like (lon, lat)
         :param variables: chosen list of variables based on the variables list for the dataset
@@ -67,10 +70,12 @@ class GetGFSData:
         :return: the updated dataframe
         """
         # converts temperature from Kelvin to Degrees Celsius
-        data_with_variables['Temperature_isobaric'] = data_with_variables['Temperature_isobaric'].apply(lambda x: x - 273.015)
+        data_with_variables['Temperature_isobaric'] = data_with_variables['Temperature_isobaric'].apply(
+            lambda x: x - 273.015)
 
         # converts pressure from Pa to hPa
-        data_with_variables['pressure'] = data_with_variables['pressure'].apply(lambda x: x / 100)
+        data_with_variables['pressure'] = data_with_variables['pressure'].apply(
+            lambda x: x / 100)
 
         # dictionary with the units used to apply into the mpcalc function
         # the package metpy functions will only deal with data with its units associated
@@ -78,7 +83,8 @@ class GetGFSData:
         variables_units_dict = dict(zip(variables_list, self.units))
 
         # Attach units to data into the dataframe and return united arrays
-        data_with_variables = pandas_dataframe_to_unit_arrays(data_with_variables, variables_units_dict)
+        data_with_variables = pandas_dataframe_to_unit_arrays(
+            data_with_variables, variables_units_dict)
 
         # Calculate the ambient dewpoint given air temperature and relative humidity.
         data_with_variables['Dewpoint'] = mpcalc.dewpoint_from_relative_humidity(
@@ -103,10 +109,16 @@ class GetGFSData:
             press_lvls_name = chosen_variable.coordinates.split()[-1]
             press_lvls = raw_data.variables[press_lvls_name]
             press_lvls_values = press_lvls[0, time_step].squeeze()
-            df = pd.DataFrame([press_lvls_values, chosen_variable_vals], index=None).transpose()
+            df = pd.DataFrame(
+                [press_lvls_values, chosen_variable_vals], index=None).transpose()
             df.columns = ['pressure', variable]
             df_list.append(df)
 
-        data_with_variables = reduce(lambda left, right: pd.merge(left, right, on=['pressure'], how='inner'), df_list)
+        data_with_variables = reduce(lambda left, right: pd.merge(
+            left, right, on=['pressure'], how='inner'), df_list)
         adjusted_data = self.adjust_data(data_with_variables.iloc[::-1])
         return adjusted_data
+
+
+if __name__ == "__main__":
+    pass
