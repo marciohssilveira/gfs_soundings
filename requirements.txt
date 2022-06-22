@@ -14,7 +14,7 @@ kiwisolver==1.2.0
 matplotlib==3.2.2
 MetPy==0.12.1
 netCDF4==1.5.3
-numpy==1.19.0
+numpy==1.22.0
 packaging==20.4
 pandas==1.0.5
 parso==0.7.0
